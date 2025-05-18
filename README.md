@@ -1,2 +1,2 @@
-# Tongji-Voice
-2025 Tongji University Software Engineering Management and Economics course project
+- AI_Voice_Synthetic
+- 2024-2025学年第二学期同济大学软件工程管理与经济学课程项目
