@@ -3,20 +3,141 @@
 <head>
   <meta charset="UTF-8">
   <title>AI 教学语音合成系统</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    body { font-family: sans-serif; margin: 40px; }
-    section { margin-bottom: 30px; }
-    label { display: block; margin-top: 10px; }
-    input, textarea, select, button { width: 100%; padding: 10px; margin-top: 5px; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-    th, td { padding: 8px; border: 1px solid #aaa; text-align: left; }
-    audio { width: 100%; margin-top: 5px; }
+    /* ===== 页面基础风格 ===== */
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Orbitron', sans-serif;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: #f0f0f0;
+    }
+
+    h1 {
+      text-align: center;
+      padding: 30px 0;
+      color: #00ffc3;
+      font-size: 32px;
+      letter-spacing: 2px;
+      border-bottom: 2px solid rgba(255,255,255,0.1);
+      margin-bottom: 40px;
+    }
+
+    section {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(5px);
+      margin: 30px auto;
+      max-width: 800px;
+      border-radius: 16px;
+      padding: 20px 30px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    h2 {
+      color: #00ffe1;
+      margin-bottom: 15px;
+      font-size: 22px;
+    }
+
+    label {
+      margin-top: 15px;
+      display: block;
+      font-size: 14px;
+      font-weight: bold;
+      color: #ffffffc0;
+    }
+
+    input[type="file"],
+    input[type="text"],
+    textarea,
+    select {
+      width: 100%;
+      padding: 12px;
+      margin-top: 8px;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+      background: #2a3b4c;
+      color: #ffffff;
+      font-size: 14px;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 15px;
+      padding: 12px;
+      font-size: 16px;
+      font-weight: bold;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(90deg, #00ffd0, #00b2ff);
+      color: #000;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    button:hover {
+      background: linear-gradient(90deg, #00b2ff, #00ffd0);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 10px rgba(0, 255, 255, 0.4);
+    }
+
+    textarea {
+      resize: vertical;
+    }
+
+    /* 音频播放样式 */
+    audio {
+      width: 100%;
+      margin-top: 10px;
+    }
+
+    /* 表格美化 */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background-color: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    th, td {
+      padding: 10px 15px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      text-align: left;
+    }
+
+    th {
+      background-color: rgba(255,255,255,0.08);
+      color: #00ffe1;
+    }
+
+    tr:hover {
+      background-color: rgba(255,255,255,0.08);
+    }
+
+    /* 卡片样式块 */
+    .slide-card {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 15px;
+      margin-bottom: 12px;
+      border-radius: 8px;
+      border-left: 4px solid #00ffc3;
+    }
+
+    .slide-card strong {
+      color: #00ffe1;
+    }
   </style>
 </head>
 <body>
+
   <h1>AI 教学语音合成系统</h1>
 
-  <!-- ① 上传教师声音样本 -->
+  <!-- 教师声音样本上传 -->
   <section>
     <h2>① 上传教师声音样本</h2>
     <form id="uploadAudioForm">
@@ -27,7 +148,7 @@
     <div id="uploadAudioResult"></div>
   </section>
 
-  <!-- ② 提交教学文本任务 -->
+  <!-- 教学文本任务提交 -->
   <section>
     <h2>② 提交教学文本任务</h2>
     <label for="textContent">教学文本（800~2000字）</label>
@@ -40,7 +161,7 @@
     <div id="textTaskResult"></div>
   </section>
 
-  <!-- ③ 合成语音并播放 -->
+  <!-- 文本合成语音 -->
   <section>
     <h2>③ 合成语音并播放</h2>
     <label for="taskIdInput">输入任务 ID：</label>
@@ -50,10 +171,10 @@
     <div id="audioPlayer"></div>
   </section>
 
-  <!-- ④ 历史文本任务列表 -->
+  <!-- 任务管理 -->
   <section>
     <h2>④ 历史文本任务列表</h2>
-    <div>
+    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
       <button onclick="loadTaskList()">全部</button>
       <button onclick="loadTaskList('completed')">仅已完成</button>
       <button onclick="loadTaskList('pending')">仅待处理</button>
@@ -61,7 +182,7 @@
     <div id="taskList"></div>
   </section>
 
-  <!-- ⑤ PPT 上传与预览 -->
+  <!-- PPT 上传与预览 -->
   <section>
     <h2>⑤ PPT 上传与预览</h2>
     <form id="pptForm">
@@ -72,9 +193,9 @@
     <div id="pptResult"></div>
   </section>
 
-  <!-- 脚本 -->
+  <!-- JavaScript 功能脚本 -->
   <script>
-    // 初始化声音样本下拉框
+    // 初始化声音样本列表
     fetch('/list_voices')
       .then(res => res.json())
       .then(data => {
@@ -87,7 +208,7 @@
         });
       });
 
-    // 上传教师音频
+    // 上传音频文件
     document.getElementById('uploadAudioForm').addEventListener('submit', e => {
       e.preventDefault();
       const file = document.getElementById('audioFile').files[0];
@@ -100,7 +221,7 @@
         });
     });
 
-    // 提交教学文本任务
+    // 提交文本任务
     function submitTextTask() {
       const text = document.getElementById('textContent').value;
       const voice_id = document.getElementById('voiceSelect').value;
@@ -174,39 +295,34 @@
     // 删除任务
     function deleteTask(task_id) {
       if (!confirm(`确认删除任务 ${task_id} 吗？`)) return;
-
-      fetch(`/delete_task/${task_id}`, {
-        method: 'DELETE'
-      }).then(res => res.json()).then(data => {
-        alert(data.message);
-        loadTaskList();
-      });
+      fetch(`/delete_task/${task_id}`, { method: 'DELETE' })
+        .then(res => res.json()).then(data => {
+          alert(data.message);
+          loadTaskList();
+        });
     }
 
-    // 上传 PPT 文件并提取文字
+    // 上传 PPT 并提取文字
     document.getElementById('pptForm').addEventListener('submit', e => {
       e.preventDefault();
       const file = document.getElementById('pptFile').files[0];
       const formData = new FormData();
       formData.append('file', file);
+      fetch('/upload_ppt', { method: 'POST', body: formData })
+        .then(res => res.json()).then(data => {
+          const container = document.getElementById('pptResult');
+          if (data.error) {
+            container.textContent = data.error;
+            return;
+          }
 
-      fetch('/upload_ppt', {
-        method: 'POST',
-        body: formData
-      }).then(res => res.json()).then(data => {
-        const container = document.getElementById('pptResult');
-        if (data.error) {
-          container.textContent = data.error;
-          return;
-        }
-
-        container.innerHTML = `<p>共 ${data.slide_count} 页 PPT：</p>` +
-          data.slides.map((text, i) => `
-            <div style="border:1px solid #ccc; padding:10px; margin-bottom:10px;">
-              <strong>第 ${i + 1} 页:</strong><br>${text.replace(/\n/g, '<br>')}
-            </div>
-          `).join('');
-      });
+          container.innerHTML = `<p>共 ${data.slide_count} 页 PPT：</p>` +
+            data.slides.map((text, i) => `
+              <div class="slide-card">
+                <strong>第 ${i + 1} 页:</strong><br>${text.replace(/\n/g, '<br>')}
+              </div>
+            `).join('');
+        });
     });
   </script>
 </body>

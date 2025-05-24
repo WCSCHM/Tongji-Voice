@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>欢迎使用 AI 教学语音合成系统</title>
+  <!-- 引入科技感字体 -->
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+      color: #fff;
+      font-family: 'Orbitron', 'Microsoft Yahei', sans-serif;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+    .container {
+      text-align: center;
+      background: rgba(255,255,255,0.04);
+      border-radius: 18px;
+      box-shadow: 0 6px 32px 2px rgba(0,255,200,0.16);
+      padding: 50px 36px 36px 36px;
+      margin-top: 50px;
+      min-width: 360px;
+      max-width: 90vw;
+    }
+    h1 {
+      font-size: 2.3rem;
+      color: #00ffc3;
+      letter-spacing: 1.5px;
+      margin-bottom: 18px;
+      text-shadow: 0 0 10px #00ffc6, 0 0 18px #00ffc6;
+      animation: shine 2s linear infinite alternate;
+    }
+    @keyframes shine {
+      from { text-shadow: 0 0 10px #00ffc6, 0 0 20px #00ffc6; }
+      to   { text-shadow: 0 0 18px #00ffc6, 0 0 35px #00ffc6; }
+    }
+    .subtitle {
+      font-size: 1.13rem;
+      color: #aaffee;
+      margin-bottom: 38px;
+      letter-spacing: 1.2px;
+    }
+    /* 炫酷动感loading圆圈 */
+    .loader {
+      border: 7px solid rgba(255,255,255,0.09);
+      border-top: 7px solid #00ffc6;
+      border-radius: 50%;
+      width: 56px;
+      height: 56px;
+      margin: 0 auto 32px auto;
+      animation: spin 1.2s linear infinite;
+      box-shadow: 0 0 32px #00ffc3;
+    }
+    @keyframes spin {
+      0%   { transform: rotate(0deg);}
+      100% { transform: rotate(360deg);}
+    }
+    .enter-btn {
+      margin-top: 18px;
+      background: linear-gradient(90deg, #00ffc6, #00baff 96%);
+      border: none;
+      border-radius: 30px;
+      padding: 16px 42px;
+      font-size: 1.19rem;
+      color: #191b26;
+      font-family: 'Orbitron', 'Microsoft Yahei', sans-serif;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      box-shadow: 0 2px 18px 0 #00ffc3b8;
+      cursor: pointer;
+      transition: all .16s cubic-bezier(.39,.34,.63,.88);
+    }
+    .enter-btn:hover {
+      background: linear-gradient(90deg, #00baff 30%, #00ffc6 100%);
+      color: #013b39;
+      transform: translateY(-2px) scale(1.04);
+      box-shadow: 0 4px 36px 0 #00ffc3a8;
+    }
+    .footer {
+      position: fixed;
+      bottom: 18px;
+      left: 0; right: 0;
+      text-align: center;
+      color: #82ffe8;
+      font-size: 14px;
+      letter-spacing: 1.1px;
+      opacity: .7;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- 科技感主标题 -->
+    <h1>欢迎使用 AI 教学语音合成系统</h1>
+    <!-- 炫酷动画 -->
+    <div class="loader"></div>
+    <!-- 副标题 -->
+    <div class="subtitle">让语音合成赋能你的教学，每一次讲解都更生动。</div>
+    <!-- 进入按钮，点击后跳转到主页面 -->
+    <button class="enter-btn" onclick="window.location.href='/main'">进入系统</button>
+  </div>
+  <div class="footer">
+    © 2025 AI 教学语音合成系统
+  </div>
+</body>
+</html>
