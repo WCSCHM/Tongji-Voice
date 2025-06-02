@@ -1,5 +1,9 @@
-Flask==2.3.2
+Flask==2.3.3
+werkzeug==2.3.7
 pydub==0.25.1
 ffmpeg-python==0.2.0
 librosa==0.10.1
 python-pptx
+pytest-cov
+pyttsx3
+pytest
