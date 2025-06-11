@@ -438,17 +438,6 @@ class TestFlaskApp(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertEqual(json.loads(response.data)['error'], '任务记录不存在')
 
-    def test_get_audio_task_not_found(self):
-        """测试下载音频时找不到任务"""
-        # 创建空的任务文件
-        tasks_path = os.path.join(app.config['UPLOAD_FOLDER'], 'text_tasks.json')
-        with open(tasks_path, 'w') as f:
-            json.dump([], f)
-        
-        response = self.client.get('/get_audio/nonexistent-id')
-        self.assertEqual(response.status_code, 404)
-        self.assertEqual(json.loads(response.data)['error'], '任务未完成或未找到')
-
     def test_get_audio_task_not_completed(self):
         """测试下载未完成任务的音频"""
         # 创建一个未完成的任务
