@@ -4,20 +4,22 @@ import uuid
 import json
 import time
 from audio_utils import standardize_audio, check_audio_duration  # 自定义音频处理工具
-import pyttsx3  # 文本转语音
 from pptx import Presentation  # 用于解析 PPT 文件内容
+from TTS.api import TTS
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
 # ---------- 文件路径配置 ----------
-UPLOAD_FOLDER = 'uploads'                 # 所有上传内容统一放在 uploads 下
+UPLOAD_FOLDER = 'uploads'  # 所有上传内容统一放在 uploads 下
 PPT_FOLDER = os.path.join(UPLOAD_FOLDER, 'pptx')  # PPT 文件子目录
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(PPT_FOLDER, exist_ok=True)
 
 # ---------- 元数据存储路径 ----------
 METADATA_PATH = os.path.join(UPLOAD_FOLDER, 'audio_metadata.json')  # 音频样本信息
-TEXT_TASK_PATH = os.path.join(UPLOAD_FOLDER, 'text_tasks.json')     # 文本任务信息
+TEXT_TASK_PATH = os.path.join(UPLOAD_FOLDER, 'text_tasks.json')  # 文本任务信息
+
 
 # ---------- 工具函数 ----------
 
@@ -32,12 +34,14 @@ def save_metadata(metadata):
     with open(METADATA_PATH, 'w') as f:
         json.dump(data, f, indent=2)
 
+
 # 加载所有声音样本信息
 def load_all_voices():
     if os.path.exists(METADATA_PATH):
         with open(METADATA_PATH, 'r') as f:
             return json.load(f)
     return []
+
 
 # ---------- 欢迎页及主界面 ----------
 
@@ -48,12 +52,14 @@ def welcome():
     """
     return render_template("welcome.html")
 
+
 @app.route("/main", methods=["GET"])
 def index():
     """
     主业务界面
     """
     return render_template("index.html")
+
 
 # ---------- 接口定义区 ----------
 
@@ -67,17 +73,28 @@ def upload_audio():
         return jsonify({"error": "No file provided"}), 400
 
     file = request.files['file']
-    filename = file.filename
-    original_path = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(original_path)
+    if file.filename == '':
+        return jsonify({"error": "Empty filename"}), 400
+
+    # 获取自定义ID（如果存在）
+    custom_id = request.form.get('custom_id')
+
+    # 检查ID是否已存在
+    if custom_id:
+        voices = load_all_voices()
+        if any(v["id"] == custom_id for v in voices):
+            return jsonify({"error": "该声音样本ID已存在"}), 400
+
+    safe_filename = secure_filename(file.filename)
+    original_path = os.path.join(UPLOAD_FOLDER, safe_filename)
 
     try:
-        # 标准化音频
+        file.save(original_path)
         processed_path = standardize_audio(original_path)
         duration = check_audio_duration(processed_path)
 
-        # 为该音频样本生成唯一ID
-        voice_id = str(uuid.uuid4())
+        # 使用自定义ID或生成UUID
+        voice_id = custom_id if custom_id else str(uuid.uuid4())
         metadata = {
             "id": voice_id,
             "filename": os.path.basename(processed_path),
@@ -91,11 +108,13 @@ def upload_audio():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
 # ② 获取所有上传的声音样本列表
 @app.route("/list_voices", methods=["GET"])
 def list_voices():
     """列出所有声音样本信息"""
     return jsonify(load_all_voices()), 200
+
 
 # ③ 提交教学文本任务（将文本与声音样本绑定）
 @app.route("/submit_text_task", methods=["POST"])
@@ -106,21 +125,28 @@ def submit_text_task():
     data = request.get_json()
     text = data.get("text", "").strip()
     voice_id = data.get("voice_id")
+    custom_task_id = data.get("custom_task_id")
 
     # 参数校验
     if not text or not voice_id:
         return jsonify({"error": "text 和 voice_id 不能为空"}), 400
 
-    if len(text) < 800 or len(text) > 2000:
-        return jsonify({"error": "文本长度应在800到2000字符之间"}), 400
-
+    # 检查声音样本是否存在
     voices = load_all_voices()
     voice_exists = any(v["id"] == voice_id for v in voices)
     if not voice_exists:
         return jsonify({"error": "无效的 voice_id"}), 400
 
+    # 检查任务ID是否已存在
+    if custom_task_id:
+        if os.path.exists(TEXT_TASK_PATH):
+            with open(TEXT_TASK_PATH, 'r') as f:
+                tasks = json.load(f)
+            if any(t["task_id"] == custom_task_id for t in tasks):
+                return jsonify({"error": "该任务ID已存在"}), 400
+
     # 创建任务对象
-    task_id = str(uuid.uuid4())
+    task_id = custom_task_id if custom_task_id else str(uuid.uuid4())
     task_record = {
         "task_id": task_id,
         "voice_id": voice_id,
@@ -142,7 +168,11 @@ def submit_text_task():
 
     return jsonify({"message": "文本任务已提交", "task_id": task_id}), 200
 
-# ④ 根据任务生成语音（使用 pyttsx3 占位合成）
+
+# ④ 根据任务生成语音
+TTS_MODEL = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=True, gpu=False)
+
+
 @app.route("/generate_audio", methods=["POST"])
 def generate_audio():
     """
@@ -168,12 +198,18 @@ def generate_audio():
     output_filename = f"{task_id}_output.wav"
     output_path = os.path.join(UPLOAD_FOLDER, output_filename)
 
+    voice_id = task.get("voice_id")
+    voices = load_all_voices()
+    sample = next((v for v in voices if v["id"] == voice_id), None)
+    if not sample or not os.path.exists(sample["path"]):
+        return jsonify({"error": "找不到声音样本"}), 404
+
+    speaker_wav = sample["path"]
+
     try:
-        # 使用 pyttsx3 将文本转换为语音
-        engine = pyttsx3.init()
-        engine.setProperty('rate', 150)
-        engine.save_to_file(text, output_path)
-        engine.runAndWait()
+        # 使用 Coqui TTS 进行语音合成
+        print("生成中......")
+        TTS_MODEL.tts_to_file(text=text, speaker_wav=speaker_wav, file_path=output_path, language="zh-cn")
 
         task["status"] = "completed"
         task["output_audio"] = output_filename
@@ -188,7 +224,8 @@ def generate_audio():
         }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"TTS 合成失败: {str(e)}"}), 500
+
 
 # ⑤ 下载任务生成的语音
 @app.route("/get_audio/<task_id>", methods=["GET"])
@@ -212,6 +249,7 @@ def get_audio(task_id):
 
     return send_from_directory(UPLOAD_FOLDER, filename, as_attachment=True)
 
+
 # ⑥ 获取所有任务列表
 @app.route("/list_text_tasks", methods=["GET"])
 def list_text_tasks():
@@ -224,6 +262,7 @@ def list_text_tasks():
     with open(TEXT_TASK_PATH, 'r') as f:
         tasks = json.load(f)
     return jsonify(tasks), 200
+
 
 # ⑦ 删除任务（含音频）
 @app.route("/delete_task/<task_id>", methods=["DELETE"])
@@ -250,6 +289,7 @@ def delete_task(task_id):
         json.dump(new_tasks, f, indent=2)
 
     return jsonify({"message": f"任务 {task_id} 已删除"}), 200
+
 
 # ⑧ 上传 PPT 文件并提取文本
 @app.route("/upload_ppt", methods=["POST"])
@@ -289,6 +329,7 @@ def upload_ppt():
 
     except Exception as e:
         return jsonify({"error": f"PPT解析失败: {str(e)}"}), 500
+
 
 # ---------- 启动服务器 ----------
 if __name__ == "__main__":
