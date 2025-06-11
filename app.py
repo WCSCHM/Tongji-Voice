@@ -4,8 +4,9 @@ import uuid
 import json
 import time
 from audio_utils import standardize_audio, check_audio_duration  # 自定义音频处理工具
-import pyttsx3  # 文本转语音
 from pptx import Presentation  # 用于解析 PPT 文件内容
+from TTS.api import TTS
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 
@@ -168,7 +169,10 @@ def submit_text_task():
     return jsonify({"message": "文本任务已提交", "task_id": task_id}), 200
 
 
-# ④ 根据任务生成语音（使用 pyttsx3 占位合成）
+# ④ 根据任务生成语音
+TTS_MODEL = TTS(model_name="tts_models/multilingual/multi-dataset/xtts_v2", progress_bar=True, gpu=False)
+
+
 @app.route("/generate_audio", methods=["POST"])
 def generate_audio():
     """
@@ -194,12 +198,18 @@ def generate_audio():
     output_filename = f"{task_id}_output.wav"
     output_path = os.path.join(UPLOAD_FOLDER, output_filename)
 
+    voice_id = task.get("voice_id")
+    voices = load_all_voices()
+    sample = next((v for v in voices if v["id"] == voice_id), None)
+    if not sample or not os.path.exists(sample["path"]):
+        return jsonify({"error": "找不到声音样本"}), 404
+
+    speaker_wav = sample["path"]
+
     try:
-        # 使用 pyttsx3 将文本转换为语音
-        engine = pyttsx3.init()
-        engine.setProperty('rate', 150)
-        engine.save_to_file(text, output_path)
-        engine.runAndWait()
+        # 使用 Coqui TTS 进行语音合成
+        print("生成中......")
+        TTS_MODEL.tts_to_file(text=text, speaker_wav=speaker_wav, file_path=output_path, language="zh-cn")
 
         task["status"] = "completed"
         task["output_audio"] = output_filename
@@ -214,7 +224,7 @@ def generate_audio():
         }), 200
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        return jsonify({"error": f"TTS 合成失败: {str(e)}"}), 500
 
 
 # ⑤ 下载任务生成的语音
