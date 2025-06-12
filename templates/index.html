@@ -131,6 +131,36 @@
     .slide-card strong {
       color: #00ffe1;
     }
+
+    /* PPT Task Section */
+    #pptTaskContainer {
+      background: rgba(255, 255, 255, 0.05);
+      padding: 20px;
+      border-radius: 8px;
+      margin-top: 20px;
+    }
+
+    #pptTaskContainer label {
+      margin-top: 10px;
+    }
+
+    /* Generating status */
+    #generatingStatus {
+      display: none;
+      margin-top: 15px;
+      color: #00ffc3;
+    }
+
+    /* Character count styles */
+    .char-count {
+      font-size: 12px;
+      color: #ffffff80;
+      text-align: right;
+      margin-top: 5px;
+    }
+    .char-count.invalid {
+      color: #ff6b6b;
+    }
   </style>
 </head>
 <body>
@@ -143,6 +173,10 @@
     <form id="uploadAudioForm">
       <label for="audioFile">选择音频文件：</label>
       <input type="file" id="audioFile" accept="audio/*">
+      
+      <label for="voiceIdInput">自定义声音样本 ID（可选）：</label>
+      <input type="text" id="voiceIdInput" placeholder="留空将自动生成">
+      
       <button type="submit">上传音频</button>
     </form>
     <div id="uploadAudioResult"></div>
@@ -153,27 +187,21 @@
     <h2>② 提交教学文本任务</h2>
     <label for="textContent">教学文本（800~2000字）</label>
     <textarea id="textContent" rows="8"></textarea>
+    <div id="charCount" class="char-count">0/2000 字符</div>
 
     <label for="voiceSelect">选择声音样本：</label>
     <select id="voiceSelect"></select>
+    
+    <label for="customTaskIdInput">自定义任务 ID（可选）：</label>
+    <input type="text" id="customTaskIdInput" placeholder="留空将自动生成">
 
     <button onclick="submitTextTask()">提交任务</button>
     <div id="textTaskResult"></div>
   </section>
 
-  <!-- 文本合成语音 -->
-  <section>
-    <h2>③ 合成语音并播放</h2>
-    <label for="taskIdInput">输入任务 ID：</label>
-    <input id="taskIdInput">
-
-    <button onclick="generateAudio()">生成语音</button>
-    <div id="audioPlayer"></div>
-  </section>
-
   <!-- 任务管理 -->
   <section>
-    <h2>④ 历史文本任务列表</h2>
+    <h2>③ 历史文本任务列表</h2>
     <div style="display: flex; gap: 10px; margin-bottom: 10px;">
       <button onclick="loadTaskList()">全部</button>
       <button onclick="loadTaskList('completed')">仅已完成</button>
@@ -182,77 +210,72 @@
     <div id="taskList"></div>
   </section>
 
+  <!-- 文本合成语音 -->
+  <section>
+    <h2>④ 合成语音并播放</h2>
+    <label for="taskIdInput">输入任务 ID：</label>
+    <input id="taskIdInput">
+
+    <button onclick="generateAudio()">生成语音</button>
+    <div id="generatingStatus">
+      <p>生成中......</p>
+    </div>
+    <div id="audioPlayer"></div>
+  </section>
+
   <!-- PPT 上传与预览 -->
   <section>
     <h2>⑤ PPT 上传与预览</h2>
     <form id="pptForm">
       <label for="pptFile">上传 PPT 文件（.pptx）：</label>
       <input type="file" id="pptFile" accept=".pptx">
-      <button type="submit">上传并预览</button>
+      <button type="submit">上传并提取文字</button>
     </form>
     <div id="pptResult"></div>
   </section>
 
+  <!-- PPT 文本转语音任务 -->
+  <section>
+    <h2>⑥ PPT 文本转语音</h2>
+    <div id="pptTaskContainer" style="display: none;">
+      <label for="pptVoiceSelect">选择声音样本：</label>
+      <select id="pptVoiceSelect"></select>
+      
+      <label for="pptTaskIdInput">自定义任务 ID（可选）：</label>
+      <input type="text" id="pptTaskIdInput" placeholder="留空将自动生成">
+      
+      <button onclick="submitPptTask()">提交PPT语音任务</button>
+      <div id="pptTaskResult"></div>
+    </div>
+  </section>
+
   <!-- JavaScript 功能脚本 -->
   <script>
-    // 初始化声音样本列表
-    fetch('/list_voices')
-      .then(res => res.json())
-      .then(data => {
-        const select = document.getElementById('voiceSelect');
-        data.forEach(v => {
-          const opt = document.createElement('option');
-          opt.value = v.id;
-          opt.textContent = `${v.id} (${v.duration.toFixed(1)}s)`;
-          select.appendChild(opt);
-        });
-      });
+    // 存储PPT幻灯片内容
+    window.currentPptSlides = null;
 
-    // 上传音频文件
-    document.getElementById('uploadAudioForm').addEventListener('submit', e => {
-      e.preventDefault();
-      const file = document.getElementById('audioFile').files[0];
-      const formData = new FormData();
-      formData.append('file', file);
-      fetch('/upload_audio', { method: 'POST', body: formData })
+    // 初始化声音样本列表
+    function loadVoices() {
+      fetch('/list_voices')
         .then(res => res.json())
         .then(data => {
-          document.getElementById('uploadAudioResult').textContent = JSON.stringify(data);
+          const select = document.getElementById('voiceSelect');
+          const pptSelect = document.getElementById('pptVoiceSelect');
+          
+          select.innerHTML = '';
+          pptSelect.innerHTML = '';
+          
+          data.forEach(v => {
+            const opt = document.createElement('option');
+            opt.value = v.id;
+            opt.textContent = `${v.id} (${v.duration.toFixed(1)}s)`;
+            select.appendChild(opt);
+            
+            // 同时添加到PPT语音选择器
+            const pptOpt = opt.cloneNode(true);
+            pptSelect.appendChild(pptOpt);
+          });
         });
-    });
-
-    // 提交文本任务
-    function submitTextTask() {
-      const text = document.getElementById('textContent').value;
-      const voice_id = document.getElementById('voiceSelect').value;
-      fetch('/submit_text_task', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text, voice_id })
-      }).then(res => res.json()).then(data => {
-        document.getElementById('textTaskResult').textContent = JSON.stringify(data);
-      });
-    }
-
-    // 合成语音
-    function generateAudio() {
-      const task_id = document.getElementById('taskIdInput').value;
-      fetch('/generate_audio', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task_id })
-      }).then(res => res.json()).then(data => {
-        const div = document.getElementById('audioPlayer');
-        if (data.download_url) {
-          div.innerHTML = `
-            <p>生成成功！</p>
-            <audio controls src="${data.download_url}"></audio>
-            <p><a href="${data.download_url}" download>点击下载音频</a></p>
-          `;
-        } else {
-          div.textContent = JSON.stringify(data);
-        }
-      });
     }
 
     // 加载任务列表
@@ -292,6 +315,127 @@
         });
     }
 
+    // 初始化加载数据
+    loadVoices();
+    loadTaskList();
+
+    // 文本输入字符计数
+    document.getElementById('textContent').addEventListener('input', function() {
+      const charCount = this.value.length;
+      const countDisplay = document.getElementById('charCount');
+      countDisplay.textContent = `${charCount}/2000 字符`;
+      
+      // 添加或移除无效类
+      if (charCount < 800 || charCount > 2000) {
+        countDisplay.classList.add('invalid');
+      } else {
+        countDisplay.classList.remove('invalid');
+      }
+    });
+
+    // 上传音频文件
+    document.getElementById('uploadAudioForm').addEventListener('submit', e => {
+      e.preventDefault();
+      const file = document.getElementById('audioFile').files[0];
+      const customId = document.getElementById('voiceIdInput').value.trim();
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      if (customId) {
+        formData.append('custom_id', customId);
+      }
+      
+      fetch('/upload_audio', { method: 'POST', body: formData })
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) {
+            alert(data.error);
+          } else {
+            document.getElementById('uploadAudioResult').textContent = '上传成功！ID: ' + data.id;
+            loadVoices();
+            document.getElementById('voiceIdInput').value = '';
+            document.getElementById('audioFile').value = '';
+          }
+        });
+    });
+
+    // 提交文本任务
+    function submitTextTask() {
+      const text = document.getElementById('textContent').value;
+      const voice_id = document.getElementById('voiceSelect').value;
+      const customTaskId = document.getElementById('customTaskIdInput').value.trim();
+      const charCount = text.length;
+
+      // 前端验证文本长度
+      if (charCount < 800 || charCount > 2000) {
+        alert('教学文本长度应在800到2000字符之间');
+        return;
+      }
+
+      fetch('/submit_text_task', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text, 
+          voice_id,
+          custom_task_id: customTaskId || undefined
+        })
+      }).then(res => res.json()).then(data => {
+        if (data.error) {
+          alert(data.error);
+        } else {
+          document.getElementById('textTaskResult').textContent = '任务提交成功！ID: ' + data.task_id;
+          loadTaskList();
+          document.getElementById('customTaskIdInput').value = '';
+          document.getElementById('textContent').value = '';
+          document.getElementById('charCount').textContent = '0/2000 字符';
+          document.getElementById('charCount').classList.remove('invalid');
+        }
+      });
+    }
+
+    // 合成语音
+    function generateAudio() {
+      const task_id = document.getElementById('taskIdInput').value;
+      if (!task_id) {
+        alert('请输入任务ID');
+        return;
+      }
+
+      // Show generating status
+      const statusDiv = document.getElementById('generatingStatus');
+      const audioPlayerDiv = document.getElementById('audioPlayer');
+      statusDiv.style.display = 'block';
+      audioPlayerDiv.innerHTML = '';
+
+      fetch('/generate_audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ task_id })
+      })
+      .then(res => res.json())
+      .then(data => {
+        // Hide generating status
+        statusDiv.style.display = 'none';
+        
+        if (data.error) {
+          audioPlayerDiv.textContent = '生成失败: ' + data.error;
+        } else if (data.download_url) {
+          audioPlayerDiv.innerHTML = `
+            <p>生成成功！</p>
+            <audio controls src="${data.download_url}"></audio>
+            <p><a href="${data.download_url}" download>点击下载音频</a></p>
+          `;
+        } else {
+          audioPlayerDiv.textContent = JSON.stringify(data);
+        }
+      })
+      .catch(error => {
+        statusDiv.style.display = 'none';
+        audioPlayerDiv.textContent = '请求失败: ' + error.message;
+      });
+    }
+    
     // 删除任务
     function deleteTask(task_id) {
       if (!confirm(`确认删除任务 ${task_id} 吗？`)) return;
@@ -308,22 +452,71 @@
       const file = document.getElementById('pptFile').files[0];
       const formData = new FormData();
       formData.append('file', file);
+      
+      // Show loading state
+      const pptResultDiv = document.getElementById('pptResult');
+      pptResultDiv.innerHTML = '<p>正在提取PPT文字...</p>';
+      
       fetch('/upload_ppt', { method: 'POST', body: formData })
-        .then(res => res.json()).then(data => {
-          const container = document.getElementById('pptResult');
+        .then(res => res.json())
+        .then(data => {
           if (data.error) {
-            container.textContent = data.error;
+            pptResultDiv.textContent = data.error;
             return;
           }
 
-          container.innerHTML = `<p>共 ${data.slide_count} 页 PPT：</p>` +
+          // Store the slides data for later use
+          window.currentPptSlides = data.slides;
+          
+          // Show PPT content
+          pptResultDiv.innerHTML = `<p>共 ${data.slide_count} 页 PPT：</p>` +
             data.slides.map((text, i) => `
               <div class="slide-card">
                 <strong>第 ${i + 1} 页:</strong><br>${text.replace(/\n/g, '<br>')}
               </div>
             `).join('');
+          
+          // Show the task submission section
+          document.getElementById('pptTaskContainer').style.display = 'block';
+          document.getElementById('pptTaskResult').innerHTML = '';
         });
     });
+
+    // 提交PPT语音任务
+    function submitPptTask() {
+      if (!window.currentPptSlides || window.currentPptSlides.length === 0) {
+        alert('请先上传PPT并提取文字');
+        return;
+      }
+
+      const voice_id = document.getElementById('pptVoiceSelect').value;
+      const customTaskId = document.getElementById('pptTaskIdInput').value.trim();
+      const slides = window.currentPptSlides;
+
+      // Combine all slides text with page numbers
+      const combinedText = slides.map((text, i) => `第${i+1}页: ${text}`).join('\n\n');
+
+      fetch('/submit_text_task', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text: combinedText, 
+          voice_id,
+          custom_task_id: customTaskId || undefined
+        })
+      }).then(res => res.json()).then(data => {
+        if (data.error) {
+          alert(data.error);
+        } else {
+          document.getElementById('pptTaskResult').innerHTML = `
+            <p>PPT语音任务提交成功！ID: ${data.task_id}</p>
+            <p>共 ${slides.length} 页PPT内容已合并提交</p>
+          `;
+          document.getElementById('pptTaskIdInput').value = '';
+          loadTaskList();
+        }
+      });
+    }
   </script>
 </body>
 </html>

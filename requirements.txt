@@ -5,5 +5,9 @@ ffmpeg-python==0.2.0
 librosa==0.10.1
 python-pptx
 pytest-cov
-pyttsx3
 pytest
+TTS
+torchaudio>=2.0.1  # 建议指定版本以匹配 PyTorch
+torch>=2.0.0 
+pypinyin
+Werkzeug
